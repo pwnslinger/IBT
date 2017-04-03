@@ -33,11 +33,12 @@ def trace_reg(adr,value):
             if 'bp' in op2:
                 op_2=op2[5:-1]
                 if value in op1:
-                    print '%s: %s %s -> %s' % (hex(address),mn,value,op_2)
+                    print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
                     trace_reg(address,op_2)
             else:
                  if value in op1:
-                    print '%s: %s %s -> %s' % (hex(address),mn,value,op2)
+                    print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
+                    trace_reg(address,op2)
         address=PrevHead(address,start)
 
 def get_arg(adr,n,count):
@@ -61,6 +62,7 @@ for api, ref in xrefs.iteritems():
     for  adr in list(ref):
         if api == "WSASendTo":
             buffer=get_arg(adr,2,0)
+            print idc.GetDisasm(adr)
             print idc.GetDisasm(buffer)
             print get_opnd(buffer)
             trace_reg(buffer,get_opnd(buffer))
