@@ -1,8 +1,6 @@
-import idautils
-from idc import *
-
 xrefs = {}
 send_api = ["WSASendTo","send"]
+registers=['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'esp']
 
 for api in send_api:
         adr=idc.LocByName(api)
@@ -30,11 +28,18 @@ def trace_reg(adr,value):
         if mn in ['mov', 'movsx', 'movzx','xchg','lea']:
             op1 = GetOpnd(address,0)
             op2 = GetOpnd(address,1)
-            if 'bp' in op2:
-                op_2=op2[5:-1]
-                if value in op1:
-                    print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
-                    trace_reg(address,op_2)
+            idaapi.decode_insn(address)
+            if idaapi.cmd.Op2.type == idaapi.o_displ:
+                reg=op2[1:4]
+                off=op2[5:-1]
+                if 'bp' in op2:
+                    op_2=op2[5:-1]
+                    if value in op1:
+                        print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
+                        trace_reg(address,op_2)
+                elif reg in registers and value in op1:
+                    print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
+                    trace_reg(address,reg)
             else:
                  if value in op1:
                     print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
