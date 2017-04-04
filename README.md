@@ -11,7 +11,17 @@ Our approach to reach our final goal has been divided into these sub-problems an
 	
 	[!] Being able to follow argument passings between different functions in the way of CFG
 	
-{Phase 2} Data structure extraction and field boundary determination
+{Phase  2} Addressing the problem of finding call origin of indirect calls 
+
+	[-] Locating the vtable pointer to the base of the table
+	
+	[-] Using Pintool to detect call sites which are accessible during routine running
+	
+	[-] Using Symbolic execution in conjunction with Z3 solver to satisfy reachability to that node
+	
+	[-] Adding additional cross-references to CFG
+
+{Phase 3} Data structure extraction and field boundary determination
 
 	[-] Finding a good condition to stop our back tracing at the beginning of struct initialization
 	
@@ -19,6 +29,6 @@ Our approach to reach our final goal has been divided into these sub-problems an
 	
 	[-] Extraction of field semantics by analyzing naitive API call invocations
 	
-{Phase 3} Saving extracted protocol structure into a XML representation
+{Phase 4} Saving extracted protocol structure into a XML representation
 
-{Phase 4} auto-generation of Lua wireshark decoder for the protocol
+{Phase 5} auto-generation of Lua wireshark decoder for the protocol
