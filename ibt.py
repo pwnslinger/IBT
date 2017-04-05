@@ -34,7 +34,7 @@ class IdaBackTracer:
         print func_args
         address = PrevHead(adr, minea=0)
         if adr == start:
-                return
+                return None
                 
         while start <= address <= end:
             mn = GetMnem(address)
@@ -50,7 +50,12 @@ class IdaBackTracer:
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
                         for s in func_args:
                             if op_2.lower() in s.lower():
-                                print '%s found in arguments of %s' % (op_2,hex(start))
+                                print '%s found in arguments of sub_%s' % (op_2,format(start, 'x'))
+                                list_xref = list(CodeRefsTo(start, 1))
+                                index = func_args.index(s) + 1
+                                buffer = self.get_arg(list_xref[0], index)
+                                print 'send buffer is %d arg of sub_%s : %s' % (index, format(list_xref[0],'x'), idc.GetDisasm(buffer))
+                                return self.trace_reg(buffer,GetOpnd(buffer, 0))
                                 break
                         return self.trace_reg(address,op_2)
                     elif reg in self.registers and value in op1:
@@ -59,10 +64,18 @@ class IdaBackTracer:
                 
                 else:
                     if value in op1:
+#                        if value in op1:
+#                            if idaapi.o_reg in idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
+#                                hasCall, c, adr = hasCallInst(address,10)
+#                                if hasCall:
+#                                    print 'sub_%s found as a candidate for DS initialization %d instructions after %s' % (format(adr,'x'), c, idc.GetDisasm(address))
+                            
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
                 
             address=PrevHead(address,minea=0)
+            
+        return None
     
     @staticmethod
     def get_arg(address, argument_number):
@@ -80,9 +93,17 @@ class IdaBackTracer:
                 
             if argument_counter == argument_number:
                     return address
+
+    @staticmethod
+    def hasCallInst(adr,count):
+        for c in range(0, count + 10):
+            adr = PrevHead(adr,minea=0)
+            mn = GetMnem(address)
+            if 'call' in mn:
+                return True, c, adr
             
-        return None
-            
+        return False, None, None
+        
             
 def main():
     ibt = IdaBackTracer()
