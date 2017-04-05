@@ -1,13 +1,14 @@
 from idaapi import *
 import idc
         
-
+        
 class IdaBackTracer:
     send_api = ["WSASendTo","Send","SendTo"]
     registers=['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'esp']
     
     def __init__(self):
         self.xrefs = {}
+        callee={}
     
     @staticmethod
     def get_func_args_cmnt(adr):
@@ -69,13 +70,13 @@ class IdaBackTracer:
 #                                hasCall, c, adr = hasCallInst(address,10)
 #                                if hasCall:
 #                                    print 'sub_%s found as a candidate for DS initialization %d instructions after %s' % (format(adr,'x'), c, idc.GetDisasm(address))
-                            
+
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
-                
+                        
             address=PrevHead(address,minea=0)
             
-        return None
+        return None                 
     
     @staticmethod
     def get_arg(address, argument_number):
@@ -104,6 +105,32 @@ class IdaBackTracer:
             
         return False, None, None
         
+def traverseCalls(adr):
+    start=GetFunctionAttr(adr,FUNCATTR_START)
+    end=GetFunctionAttr(adr,FUNCATTR_END)
+    address=NextHead(start,maxea=end)
+    key=GetFunctionName(address)
+    while start <= address <= end:
+        mn = GetMnem(address)
+        if 'call' in mn:
+            name=GetFunctionName(GetOperandValue(address,0))
+            adrr=hex(GetOperandValue(address,0))
+            if callee.has_key(key) == False:
+                callee[key]=set(map(name,adrr))
+            else:
+                callee[key].append(map(name,adrr)
+            return traverseCalls(adrr)
+        address = NextHead(address,maxea=end)
+        
+    return callee
+        
+def checkInit(adr,func):
+    print 'entering into %s' % GetFunctionName(func)
+    print 'searching for heap_alloc calls inside'
+    start=GetFunctionAttr(adr,FUNCATTR_START)
+    address = PrevHead(adr,minea=0)
+    while start>= adr: 
+        
             
 def main():
     ibt = IdaBackTracer()
@@ -121,6 +148,11 @@ def main():
                 print idc.GetDisasm(arg_adr)
                 print GetOpnd(arg_adr, 0)
                 ibt.trace_reg(arg_adr, GetOpnd(arg_adr, 0))
+                
+                print '%d st occurance of %s in %s : %s'%(count[ibt.api], ibt.api, hex(adr),idc.GetDisasm(adr))
+                print 'send buffer is %d arg of %s : %s' % (2, format(buffer,'x'), idc.GetDisasm(buffer))
+                ibt.trace_reg(buffer,GetOpnd(buffer, 0))
             
 if __name__ == "__main__":
     main()
+    
