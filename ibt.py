@@ -105,6 +105,13 @@ class IdaBackTracer:
             
         return False, None, None
         
+'''
+My desired result would be like this one:
+
+{'sub_100019B0',[({'sub_1000331F',[('GetProcessHeap','10006058'),('HeapAlloc','10006054')]},'1000331F')]}
+'''	
+
+#do a double-check plz
 def traverseCalls(adr):
     start=GetFunctionAttr(adr,FUNCATTR_START)
     end=GetFunctionAttr(adr,FUNCATTR_END)
@@ -116,12 +123,13 @@ def traverseCalls(adr):
             name=GetFunctionName(GetOperandValue(address,0))
             adrr=hex(GetOperandValue(address,0))
             if callee.has_key(key) == False:
-                callee[key]=set(map(name,adrr))
+                callee[key]=set(map(traverseCalls(adrr),adrr))
             else:
-                callee[key].append(map(name,adrr)
+                callee[key].append(map(traverseCalls(adrr),adrr)
             return traverseCalls(adrr)
         address = NextHead(address,maxea=end)
-        
+        else:
+            return None
     return callee
         
 def checkInit(adr,func):
