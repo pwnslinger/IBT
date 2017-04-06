@@ -108,7 +108,7 @@ class IdaBackTracer:
 '''
 My desired result would be like this one:
 
-{'sub_100019B0',[({'sub_1000331F',[('GetProcessHeap','10006058'),('HeapAlloc','10006054')]},'1000331F')]}
+{'sub_100019B0',[{'sub_1000331F',[[{'GetProcessHeap':None},'10006058'],[{'HeapAlloc':None},'10006054']]},'1000331F']}
 '''	
 
 #do a double-check plz
@@ -121,16 +121,26 @@ def traverseCalls(adr):
         mn = GetMnem(address)
         if 'call' in mn:
             name=GetFunctionName(GetOperandValue(address,0))
-            adrr=hex(GetOperandValue(address,0))
-            if callee.has_key(key) == False:
-                callee[key]=set(map(traverseCalls(adrr),adrr))
-            else:
-                callee[key].append(map(traverseCalls(adrr),adrr)
-            return traverseCalls(adrr)
+            if name is None:
+				name=GetOpnd(address,0)
+            adrr=GetOperandValue(address,0)
+			
+            if !FirstR:
+				if callee.has_key(key) == False:
+					FirstR = True
+					callee[key]=[traverseCalls(adrr),hex(adrr)]
+				else:
+					callee[key].append(traverseCalls(adrr),hex(adrr))
+					
+			elif('GetProcessHeap','HeapAlloc') in name:
+				return {name[3:]:None}
+				
+			else:
+				return {key:[traverseCalls(adrr),hex(adrr)]}
+                
         address = NextHead(address,maxea=end)
-        else:
-            return None
-    return callee
+	else:
+		return
         
 def checkInit(adr,func):
     print 'entering into %s' % GetFunctionName(func)
