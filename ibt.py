@@ -65,11 +65,13 @@ class IdaBackTracer:
                 
                 else:
                     if value in op1:
-#                        if value in op1:
-#                            if idaapi.o_reg in idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
-#                                hasCall, c, adr = hasCallInst(address,10)
-#                                if hasCall:
-#                                    print 'sub_%s found as a candidate for DS initialization %d instructions after %s' % (format(adr,'x'), c, idc.GetDisasm(address))
+                        if value in op1:
+                            if idaapi.o_reg is idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
+                                hasCall, c, adr = self.hasCallInst(address,10)
+                                if hasCall:
+                                    print '%s found as a candidate for DS initialization %d instructions after %s' % (GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
+                                    if self.checkInit(GetOperandValue(adr,0)):
+                                        print '%s contains pointer to a heap allocated memory region %s' % (GetOpnd(address,1) , GetDisasm(address))
 
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
@@ -96,14 +98,26 @@ class IdaBackTracer:
                     return address
 
     @staticmethod
-    def hasCallInst(adr,count):
+    def hasCallInst(address,count):
         for c in range(0, count + 10):
-            adr = PrevHead(adr,minea=0)
+            address = PrevHead(address,minea=0)
             mn = GetMnem(address)
             if 'call' in mn:
-                return True, c, adr
+                return True, c, address
             
         return False, None, None
+        
+
+# this function actually checks whether a specific function routine contains any invocation to heap allocation routines such like 'GetProcessHeap','HeapAlloc'. If there's then return True
+    def checkInit(self, adr):
+        
+        call_list, heap_flag = traverseCalls(adr)
+        if heap_flag:
+            return True
+        for funcName in call_list:
+            funcAddr = LocByName(funcName)
+            return checkInit(funcAddr)
+        return False
         
 '''
 My desired result would be like this one:
@@ -112,6 +126,7 @@ My desired result would be like this one:
 '''	
 
 #do a double-check plz
+'''
 def traverseCalls(adr):
     start=GetFunctionAttr(adr,FUNCATTR_START)
     end=GetFunctionAttr(adr,FUNCATTR_END)
@@ -122,33 +137,70 @@ def traverseCalls(adr):
         if 'call' in mn:
             name=GetFunctionName(GetOperandValue(address,0))
             if name is None:
-				name=GetOpnd(address,0)
+                name=GetOpnd(address,0)
+                    
             adrr=GetOperandValue(address,0)
-			
             if !FirstR:
-				if callee.has_key(key) == False:
-					FirstR = True
-					callee[key]=[traverseCalls(adrr),hex(adrr)]
-				else:
-					callee[key].append(traverseCalls(adrr),hex(adrr))
-					
-			elif('GetProcessHeap','HeapAlloc') in name:
-				return {name[3:]:None}
-				
-			else:
-				return {key:[traverseCalls(adrr),hex(adrr)]}
+            if callee.has_key(key) == False:
+                if ('GetProcessHeap','HeapAlloc') in name:
+                    return {name[3:]:None}
+                else:
+                    FirstR = True
+                    callee[key]=[traverseCalls(adrr),hex(adrr)]
                 
+            elif ('GetProcessHeap','HeapAlloc') in name:
+                return {name[3:]:None}
+                else:
+                    callee[key].append(traverseCalls(adrr),hex(adrr))
         address = NextHead(address,maxea=end)
-	else:
-		return
-        
-def checkInit(adr,func):
-    print 'entering into %s' % GetFunctionName(func)
+        else:
+            return None
+    return callee
+'''
+
+def traverseCalls(adr):
+    ''' 
+    print 'entering into %s' % GetFunctionName(adr)
     print 'searching for heap_alloc calls inside'
+    
+    flags=GetFunctionFlags(adr)
     start=GetFunctionAttr(adr,FUNCATTR_START)
     address = PrevHead(adr,minea=0)
     while start>= adr: 
         
+    end=GetFunctionAttr(adr,FUNCATTR_END)
+    call_list=[]
+    heap_found=False
+    
+    #ignore library functions
+    if flags & idaapi.FUNC_THUNK or flags  & idaapi.FUNC_LIB:
+        return 
+    
+    #get list all ea's of current function routine
+    disasm_addr = list(idautils.FuncItems(adr))
+    
+    for ea in disasm_addr:
+    
+        if idaapi.is_call_insn(ea):
+            op_addr = GetOperandValue(ea,0)
+            op_type = GetOpType(ea,0)
+            name=GetFunctionName(op_addr)
+            op_flags = GetFunctionFlags(op_addr)            
+            
+            if op_flags & idaapi.FUNC_LIB:
+                name = Name(op_addr)
+                if name in ('GetProcessHeap','HeapAlloc'):
+                    print 'Heap allocation routine found at %s' % GetFunctionName(ea)
+                    heap_found=True
+                    call_list.append(name)
+                    break
+                    
+            call_list.append(name)
+    '''
+    call_list=[]
+    heap_found = False
+    return call_list, heap_found
+
             
 def main():
     ibt = IdaBackTracer()
@@ -167,10 +219,9 @@ def main():
                 print GetOpnd(arg_adr, 0)
                 ibt.trace_reg(arg_adr, GetOpnd(arg_adr, 0))
                 
-                print '%d st occurance of %s in %s : %s'%(count[ibt.api], ibt.api, hex(adr),idc.GetDisasm(adr))
-                print 'send buffer is %d arg of %s : %s' % (2, format(buffer,'x'), idc.GetDisasm(buffer))
-                ibt.trace_reg(buffer,GetOpnd(buffer, 0))
+                #print '%d st occurance of %s in %s : %s'%(count[ibt.api], ibt.api, hex(adr),idc.GetDisasm(adr))
+                #print 'send buffer is %d arg of %s : %s' % (2, format(buffer,'%x'), idc.GetDisasm(buffer))
+                #ibt.trace_reg(buffer,GetOpnd(buffer, 0))
             
 if __name__ == "__main__":
-    main()
-    
+    main()    
