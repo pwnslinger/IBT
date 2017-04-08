@@ -4,7 +4,7 @@ import idc
         
 class IdaBackTracer:
     send_api = ["WSASendTo","Send","SendTo"]
-    registers=['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'esp']
+    registers=['eax', 'ebx', 'ecx', 'edx', 'esi', 'edi', 'esp', 'ebp']
     
     def __init__(self):
         self.xrefs = {}
