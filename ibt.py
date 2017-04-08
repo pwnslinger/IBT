@@ -128,11 +128,14 @@ def main():
                 print idc.GetDisasm(address)
                 print idc.GetDisasm(arg_adr)
                 print GetOpnd(arg_adr, 0)
-                ibt.trace_reg(arg_adr, GetOpnd(arg_adr, 0))
                 
-                #print '%d st occurance of %s in %s : %s'%(count[ibt.api], ibt.api, hex(adr),idc.GetDisasm(adr))
-                #print 'send buffer is %d arg of %s : %s' % (2, format(buffer,'%x'), idc.GetDisasm(buffer))
-                #ibt.trace_reg(buffer,GetOpnd(buffer, 0))
+                # TODO: Add trace function for none reg arguments like push 0, push [eax], push [0x40000000]
+                if GetOpnd(arg_adr, 0) in ibt.registers:
+                    ibt.trace_reg(arg_adr, GetOpnd(arg_adr, 0))                
+                    #print '%d st occurance of %s in %s : %s'%(count[ibt.api], ibt.api, hex(adr),idc.GetDisasm(adr))
+                    #print 'send buffer is %d arg of %s : %s' % (2, format(buffer,'%x'), idc.GetDisasm(buffer))
+                    #ibt.trace_reg(buffer,GetOpnd(buffer, 0))
+                    
             
 if __name__ == "__main__":
     main()    
