@@ -28,7 +28,7 @@ class IdaBackTracer:
                     
             address = PrevHead(address,minea=0)
     
-    def trace_reg(self, adr, value):
+    def trace_reg(self, adr, reg):
         start = GetFunctionAttr(adr, FUNCATTR_START)
         end = GetFunctionAttr(adr, FUNCATTR_END)
         func_args = self.get_func_args_cmnt(start)
@@ -45,8 +45,8 @@ class IdaBackTracer:
         
                 idaapi.decode_insn(address)
                 if idaapi.cmd.Op2.type == idaapi.o_displ:
-                    reg = op2[1:4]
-                    if 'bp' in op2 and value in op1:
+                    next_reg = op2[1:4]
+                    if 'bp' in op2 and reg in op1:
                         op_2 = op2[5:-1]
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
                         for s in func_args:
@@ -59,18 +59,19 @@ class IdaBackTracer:
                                 return self.trace_reg(buffer,GetOpnd(buffer, 0))
                                 break
                         return self.trace_reg(address,op_2)
-                    elif reg in self.registers and value in op1:
+                    elif next_reg in self.registers and reg in op1:
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
-                        return self.trace_reg(address,reg)
+                        return self.trace_reg(address,next_reg)
                 
                 else:
-                    if value in op1:
+                    if reg in op1:
                         if idaapi.o_reg is idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
                             hasCall, c, adr = self.hasCallInst(address,0)
                             if hasCall:
                                 print '%s found as a candidate for DS initialization %d instructions after %s' % (GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
                                 if checkInit(GetOperandValue(adr,0)):
                                     print '%s contains pointer to a heap allocated memory region %s' % (GetOpnd(address,1) , GetDisasm(address))
+
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
                         
