@@ -30,7 +30,7 @@ class IdaBackTracer:
     def trace_reg(self, adr, value):
         start = GetFunctionAttr(adr, FUNCATTR_START)
         end=GetFunctionAttr(adr, FUNCATTR_END)
-        func_args = getFuncArgsCmnt(start)
+        func_args = self.get_func_args_cmnt(start)
         print func_args
         address = PrevHead(adr, minea=0)
         if adr == start:
