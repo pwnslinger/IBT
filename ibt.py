@@ -29,7 +29,7 @@ class IdaBackTracer:
     
     def trace_reg(self, adr, value):
         start = GetFunctionAttr(adr, FUNCATTR_START)
-        end=GetFunctionAttr(adr, FUNCATTR_END)
+        end = GetFunctionAttr(adr, FUNCATTR_END)
         func_args = self.get_func_args_cmnt(start)
         print func_args
         address = PrevHead(adr, minea=0)
@@ -52,15 +52,15 @@ class IdaBackTracer:
                             if op_2.lower() in s.lower():
                                 print '%s found in arguments of %s' % (op_2,hex(start))
                                 break
-                        return trace_reg(address,op_2)
+                        return self.trace_reg(address,op_2)
                     elif reg in self.registers and value in op1:
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
-                        return trace_reg(address,reg)
+                        return self.trace_reg(address,reg)
                 
                 else:
                     if value in op1:
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
-                        return trace_reg(address,op2)
+                        return self.trace_reg(address,op2)
                 
             address=PrevHead(address,minea=0)
     
@@ -88,18 +88,18 @@ def main():
     ibt = IdaBackTracer()
     for ibt.api in ibt.send_api:
         adr = idc.LocByName(ibt.api)
-        if ibt.api in xrefs:
-            xrefs[ibt.api] = []
-        xrefs[ibt.api] = CodeRefsTo(adr, 1)
+        if ibt.api in ibt.xrefs:
+            ibt.xrefs[ibt.api] = []
+        ibt.xrefs[ibt.api] = CodeRefsTo(adr, 1)
             
-    for ibt.api, ref in xrefs.iteritems():
+    for ibt.api, ref in ibt.xrefs.iteritems():
         for  address in list(ref):
             if ibt.api == "WSASendTo":
                 arg_adr = ibt.get_arg(address, 2)
                 print idc.GetDisasm(address)
                 print idc.GetDisasm(arg_adr)
                 print GetOpnd(arg_adr, 0)
-                ibt.trace_reg(arg_adr, get_opnd(arg_adr))
+                ibt.trace_reg(arg_adr, GetOpnd(arg_adr, 0))
             
 if __name__ == "__main__":
     main()
