@@ -69,15 +69,21 @@ class IdaBackTracer:
                             hasCall, c, adr = self.hasCallInst(address,0)
                             if hasCall:
                                 print '%s found as a candidate for DS initialization %d instructions after %s' % (GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
-                                if checkInit(GetOperandValue(adr,0)):
+                                if self.checkInit(GetOperandValue(adr,0)):
                                     print '%s contains pointer to a heap allocated memory region %s' % (GetOpnd(address,1) , GetDisasm(address))
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
                         
             address=PrevHead(address,minea=0)
             
-    def hasCallInst(self, address, counter):
-        return
+    def hasCallInst(self, address, count):
+        for c in range(0, count + 10):
+            address = PrevHead(address, minea=0)
+            mn = GetMnem(address)
+            if 'call' in mn:
+                return True, c, address
+            
+        return False, None, None
 			
     '''
     this function actually checks whether a specific                             function routine contains any invocation to heap         allocation routines such like 'GetProcessHeap','HeapAlloc'. If there's then return True    
