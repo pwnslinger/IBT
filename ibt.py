@@ -94,13 +94,53 @@ class IdaBackTracer:
     allocation routines such like 'GetProcessHeap','HeapAlloc'. If there's then return True    
     '''
     
+    @staticmethod
+    def traverseCalls(adr):
+        print 'entering into %s' % GetFunctionName(adr)
+        print 'searching for heap_alloc calls inside'
+		
+        flags=GetFunctionFlags(adr)
+        start=GetFunctionAttr(adr,FUNCATTR_START)
+        end=GetFunctionAttr(adr,FUNCATTR_END)
+        
+        call_list=[]
+        heap_found=False
+		
+        #ignore library functions
+        if flags & idaapi.FUNC_THUNK or flags  & idaapi.FUNC_LIB:
+            return 
+		
+        #get list all ea's of current function routine
+        disasm_addr = list(idautils.FuncItems(adr))
+        
+        for ea in disasm_addr:
+		
+            if idaapi.is_call_insn(ea):
+                op_addr = GetOperandValue(ea,0)
+                op_type = GetOpType(ea,0)
+                
+                name=GetFunctionName(op_addr)
+                op_flags = GetFunctionFlags(op_addr)
+				
+                if op_flags & idaapi.FUNC_LIB:
+                    name = Name(op_addr)
+                    if name in ('GetProcessHeap','HeapAlloc','LocalHeap'):
+                        print 'Heap allocation routine found at %s' % GetFunctionName(ea)
+                        heap_found=True
+                        call_list.append(name)
+                        break
+						
+                call_list.append(name)
+
+        return call_list, heap_found
+        
     def check_init(self, adr):
         call_list, heap_flag = self.traverseCalls(adr)
         if heap_flag:
             return True
-        for func_name in call_list:
-            func_addr = LocByName(func_name)
-            return self.check_init(func_addr)
+        for funcName in call_list:
+            funcAddr = LocByName(funcName)
+            return self.checkInit(funcAddr)
         return False
 
     @staticmethod
