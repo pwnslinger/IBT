@@ -94,14 +94,13 @@ class IdaBackTracer:
     allocation routines such like 'GetProcessHeap','HeapAlloc'. If there's then return True    
     '''
     
-    @staticmethod
-    def check_init(adr):
-        call_list, heap_flag = traverseCalls(adr)
+    def check_init(self, adr):
+        call_list, heap_flag = self.traverseCalls(adr)
         if heap_flag:
             return True
         for func_name in call_list:
             func_addr = LocByName(func_name)
-            return check_init(func_addr)
+            return self.check_init(func_addr)
         return False
 
     @staticmethod
