@@ -1,3 +1,4 @@
+import idautils
 from idaapi import *
 import idc
         
@@ -140,7 +141,7 @@ class IdaBackTracer:
             return True
         for funcName in call_list:
             funcAddr = LocByName(funcName)
-            return self.checkInit(funcAddr)
+            return self.check_init(funcAddr)
         return False
 
     @staticmethod
