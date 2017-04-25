@@ -105,3 +105,34 @@ def OpXref(address,n):
     return xrefs                  
 
  
+def ArgRef(address,n): # if operand #n in address is a function argument shows it's index and references 
+    del xrefs[:] 
+    if n == 0 or n == 1:
+        idaapi.op_dec(address,n)
+        op = GetOpnd(address,n)
+        OpStkvar(address,n)
+        count = 0
+        r = re.search('([[])([a-z]+)([-+][0-9a-fx]+)([]])',op) # remove word ptr and etc.
+        if r:
+                Op = r.group(0)
+                reg=Op[1:4]
+                sign = Op[4]
+                offs=Op[5:-1]
+                stack = getStack(address)
+                for s in stack:
+                    #find offset in the stack
+		    if s[2] ==0:
+                            count = 0 
+                    elif s[2]>0 and sign =='+':
+                            count+=1
+                            if s[3] <= int(offs) < s[4]: #ebp+8
+                                    ID = s[1]
+                                    search_xrefs(address,reg,s[2],s[3],s[4])
+                                    if ID != -1:  #all members of a structure 
+                                            for st in stack:
+                                                    if st[1] == ID:
+                                                            if st[3]!= s[3]:
+                                                                    search_xrefs(address,reg,st[2],st[3],st[4])
+                                    break                       
+                    
+    return count, xrefs
