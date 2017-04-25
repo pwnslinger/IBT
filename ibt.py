@@ -1,7 +1,7 @@
 import idautils
 from idaapi import *
 import idc
-        
+import opxref         
         
 class IdaBackTracer:
     send_api = ["WSASendTo","Send","SendTo"]
@@ -33,7 +33,6 @@ class IdaBackTracer:
         start = GetFunctionAttr(adr, FUNCATTR_START)
         end = GetFunctionAttr(adr, FUNCATTR_END)
         func_args = self.get_func_args_cmnt(start)
-        print func_args
         address = PrevHead(adr, minea=0)
         if adr == start:
                 return None
@@ -50,16 +49,16 @@ class IdaBackTracer:
                     if 'bp' in op2 and reg in op1:
                         op_2 = op2[5:-1]
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
-                        for s in func_args:
-                            if op_2.lower() in s.lower():
+                        if func_args is not None:  
+			    Arg_info = ArgRef(address,1)  # Arg_info ---> count,[list of refernces]
+                            if Arg_info[1]:
                                 print '%s found in arguments of sub_%s' % (op_2,format(start, 'x'))
-                                list_xref = list(CodeRefsTo(start, 1))
-                                index = func_args.index(s) + 1
-                                buffer_arg = self.get_arg(list_xref[0], index)
-                                print 'send buffer is %d arg of sub_%s : %s' % (index, format(list_xref[0], 'x'),
-                                    idc.GetDisasm(buffer_arg))
-                                return self.trace_reg(buffer_arg,GetOpnd(buffer_arg, 0))
-                        return self.trace_reg(address,op_2)
+                                for xref_i in CodeRefsTo(start, 1):
+                                    buffer_reg=self.get_arg(xref_i,Arg_info[0])
+                                    print 'send buffer is %d arg of sub_%s : %s' % (Arg_info[0], format(xref_i,'x'), idc.GetDisasm(buffer_reg))
+                                    self.trace_reg(buffer_reg,GetOpnd(buffer_reg,0))
+                            else:
+                                return self.trace_reg(address,op_2)
                     elif next_reg in self.registers and reg in op1:
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,next_reg)
@@ -69,6 +68,7 @@ class IdaBackTracer:
                         if idaapi.o_reg is idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
                             has_call, c, adr = self.has_call_inst(address,0)
                             if has_call:
+                                print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                                 print '%s found as a candidate for DS initialization %d instructions after %s' % (
                                     GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
                                 if self.check_init(GetOperandValue(adr,0)):
@@ -77,7 +77,18 @@ class IdaBackTracer:
 
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
-                        
+             #if all instructions traced back but don't exist any mov instruction        
+            elif start == address:
+                if func_args is not None:
+                    for s in func_args:
+                        Arg_info = ArgRef(address,1)
+                        if Arg_info[1]:
+                                print '%s found in arguments of sub_%s' % (value,format(start,'x'))
+                                for xref_i in CodeRefsTo(start, 1):
+                                        buffer_arg=self.get_arg(xref_i,Arg_info[0])
+                                        print 'send buffer is %d arg of sub_%s : %s' % (Arg_info[0], format(xref_i,'x'), idc.GetDisasm(buffer_arg))
+                                        self.trace_reg(buffer_arg,GetOpnd(buffer_arg,0))
+            
             address=PrevHead(address,minea=0)
 
     @staticmethod
