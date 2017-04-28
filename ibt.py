@@ -1,7 +1,7 @@
+import opxref
 import idautils
-from idaapi import *
-import idc
-import opxref         
+import idaapi
+import idc      
         
 class IdaBackTracer:
     send_api = ["WSASendTo","Send","SendTo"]
@@ -15,6 +15,8 @@ class IdaBackTracer:
     def get_func_args_cmnt(adr):
         args_type = []
         num_args = GetFrameArgsSize(adr) / 4
+        if not list(CodeRefsTo(adr, 1)):  #check whether list of refernces is not empty
+            return
         address = list(CodeRefsTo(adr, 1))[0]
         
         arguments_counter = 0
@@ -23,7 +25,8 @@ class IdaBackTracer:
             if mn == 'push':
                 arguments_counter += 1
                 cmnt = Comment(address)
-                args_type.append(cmnt)
+                if cmnt is not None:     #check whether any comment exists
+                    args_type.append(cmnt)
                 if arguments_counter == num_args:
                     return args_type
                     
@@ -35,14 +38,12 @@ class IdaBackTracer:
         func_args = self.get_func_args_cmnt(start)
         address = PrevHead(adr, minea=0)
         if adr == start:
-                return None
-                
+                return None       
         while start <= address <= end:
+            op1 = GetOpnd(address,0)
+            op2 = GetOpnd(address,1)
             mn = GetMnem(address)
             if mn in ['mov', 'movsx', 'movzx', 'xchg', 'lea']:
-                op1 = GetOpnd(address,0)
-                op2 = GetOpnd(address,1)
-        
                 idaapi.decode_insn(address)
                 if idaapi.cmd.Op2.type == idaapi.o_displ:
                     next_reg = op2[1:4]
@@ -50,7 +51,7 @@ class IdaBackTracer:
                         op_2 = op2[5:-1]
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
                         if func_args is not None:  
-			    Arg_info = ArgRef(address,1)  # Arg_info ---> count,[list of refernces]
+			    Arg_info = opxref.ArgRef(address,1)  # Arg_info ---> count,[list of refernces]
                             if Arg_info[1]:
                                 print '%s found in arguments of sub_%s' % (op_2,format(start, 'x'))
                                 for xref_i in CodeRefsTo(start, 1):
@@ -77,17 +78,19 @@ class IdaBackTracer:
 
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
-             #if all instructions traced back but don't exist any mov instruction        
+             #if all instructions traced back but don't exist any mov instruction
             elif start == address:
                 if func_args is not None:
-                    for s in func_args:
-                        Arg_info = ArgRef(address,1)
-                        if Arg_info[1]:
-                                print '%s found in arguments of sub_%s' % (value,format(start,'x'))
-                                for xref_i in CodeRefsTo(start, 1):
-                                        buffer_arg=self.get_arg(xref_i,Arg_info[0])
-                                        print 'send buffer is %d arg of sub_%s : %s' % (Arg_info[0], format(xref_i,'x'), idc.GetDisasm(buffer_arg))
-                                        self.trace_reg(buffer_arg,GetOpnd(buffer_arg,0))
+                    if not op2:
+                        Arg_info = opxref.ArgRef(adr,0)
+                    else:
+                        Arg_info = opxref.ArgRef(adr,1)
+                    if Arg_info[1]:
+                        print '**%s found in arguments of sub_%s' % (reg,format(start,'x'))
+                        for xref_i in CodeRefsTo(start, 1):
+                            buffer_arg=self.get_arg(xref_i,Arg_info[0])
+                            print 'send buffer is %d arg of sub_%s : %s' % (Arg_info[0], format(xref_i,'x'), idc.GetDisasm(buffer_arg))
+                            self.trace_reg(buffer_arg,GetOpnd(buffer_arg,0))
             
             address=PrevHead(address,minea=0)
 
@@ -107,11 +110,13 @@ class IdaBackTracer:
     '''
     
     @staticmethod
-    def traverseCalls(adr):
+    def has_heap_alloc(adr):
         print 'entering into %s' % GetFunctionName(adr)
         print 'searching for heap_alloc calls inside'
 		
         flags=GetFunctionFlags(adr)
+        if flags == -1:
+            return None, False
         start=GetFunctionAttr(adr,FUNCATTR_START)
         end=GetFunctionAttr(adr,FUNCATTR_END)
         
@@ -136,7 +141,7 @@ class IdaBackTracer:
 				
                 if op_flags & idaapi.FUNC_LIB:
                     name = Name(op_addr)
-                    if name in ('GetProcessHeap','HeapAlloc','LocalHeap'):
+                    if name in ('GetProcessHeap','HeapAlloc','LocalAlloc'):
                         print 'Heap allocation routine found at %s' % GetFunctionName(ea)
                         heap_found=True
                         call_list.append(name)
@@ -147,9 +152,11 @@ class IdaBackTracer:
         return call_list, heap_found
         
     def check_init(self, adr):
-        call_list, heap_flag = self.traverseCalls(adr)
+        call_list, heap_flag = self.has_heap_alloc(adr)
         if heap_flag:
             return True
+        if call_list is None:
+            return False
         for funcName in call_list:
             funcAddr = LocByName(funcName)
             return self.check_init(funcAddr)
