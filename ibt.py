@@ -40,16 +40,16 @@ class IdaBackTracer:
                 
         while start <= address <= end:
             mn = GetMnem(address)
-            if mn in ['mov', 'movsx', 'movzx', 'xchg', 'lea']:
-                op1 = GetOpnd(address,0)
+            op1 = GetOpnd(address,0)
+            if reg in op1 and mn in ['mov', 'movsx', 'movzx', 'xchg', 'lea']:
                 op2 = GetOpnd(address,1)
         
                 idaapi.decode_insn(address)
                 if idaapi.cmd.Op2.type == idaapi.o_displ:
                     next_reg = op2[1:4]
-                    if 'bp' in op2 and reg in op1:
+                    if 'ebp' in op2:
                         op_2 = op2[5:-1]
-                        print '%s: %s %s -> %s' % (hex(address),mn,op1,op_2)
+                        print '1. %s: %s %s -> %s' % (hex(address),mn,op1,op_2)
                         for s in func_args:
                             if op_2.lower() in s.lower():
                                 print '%s found in arguments of sub_%s' % (op_2,format(start, 'x'))
@@ -60,20 +60,19 @@ class IdaBackTracer:
                                     idc.GetDisasm(buffer_arg))
                                 return self.trace_reg(buffer_arg,GetOpnd(buffer_arg, 0))
                         return self.trace_reg(address,op_2)
-                    elif next_reg in self.registers and reg in op1:
-                        print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
+                    elif next_reg in self.registers:
+                        print '2. %s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,next_reg)
                 
                 else:
-                    if reg in op1:
-                        if idaapi.o_reg is idaapi.cmd.Op2.type and 'eax' in GetOpnd(address,1):
-                            has_call, c, adr = self.has_call_inst(address,0)
-                            if has_call:
-                                print '%s found as a candidate for DS initialization %d instructions after %s' % (
-                                    GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
-                                if self.check_init(GetOperandValue(adr,0)):
-                                    print '%s contains pointer to a heap allocated memory region %s' % (
-                                        GetOpnd(address,1) , GetDisasm(address))
+                    if idaapi.cmd.Op2.type is idaapi.o_reg and 'eax' in GetOpnd(address,1):
+                        has_call, c, adr = self.has_call_inst(address,0)
+                        if has_call:
+                            print '%s found as a candidate for DS initialization %d instructions after %s' % (
+                                GetFunctionName(GetOperandValue(address,0)), c, idc.GetDisasm(address))
+                            if self.check_init(GetOperandValue(adr,0)):
+                                print '%s contains pointer to a heap allocated memory region %s' % (
+                                    GetOpnd(address,1) , GetDisasm(address))
 
                         print '%s: %s %s -> %s' % (hex(address),mn,op1,op2)
                         return self.trace_reg(address,op2)
