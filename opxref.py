@@ -50,22 +50,20 @@ def search_xrefs(address,reg,offset,start,end): #search all instructions in the 
          for ea in disasm_addr:
                  op1 = GetOpnd(ea,0)
                  op2 = GetOpnd(ea,1)
-                 r1 = re.search('([[])([a-z]+)([-+][0-9a-zA-Z]+)([-+][0-9a-zA-Z_]+)([]])',op1) # [ebp+80h+Buffers] operand 1 
-                 r2 = re.search('([[])([a-z]+)([-+][0-9a-zA-Z]+)([-+][0-9a-zA-Z_]+)([]])',op2) # [ebp+80h+Buffers] operand 2
+                 r1 = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_.]+)([-+][0-9a-zA-Z_.]+)([]])',op1) # [ebp+80h+Buffers] operand 1 
+                 r2 = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_.]+)([-+][0-9a-zA-Z_.]+)([]])',op2) # [ebp+80h+Buffers] operand 2
                  if r1:
                     rn = re.search('([0-9A-F]+)',op1)
                     value = GetOperandValue(ea,0)
                     offs = value - int (rn.group(0),16)
-                    if offs == offset and reg == r1.group(0)[1:4]:
-                            xrefs.append(hex(ea))
+                    if start <= offs < end and reg == r1.group(0)[1:4]:
+                            xrefs.append(ea)
                  elif r2:
                     rn = re.search('([0-9A-F]+)',op2)
                     value = GetOperandValue(ea,1)
-                    print 'val',value, 'rn',int (rn.group(0),16)
                     offs = value - int (rn.group(0),16)
-                    print offs,offset,reg,r2.group(0)[1:4]
-                    if offs == offset and reg == r2.group(0)[1:4]:
-                            xrefs.append(hex(ea))
+                    if start<= offs < end and reg == r2.group(0)[1:4]:
+                            xrefs.append(ea)
                         
                  else:
                          alt_offset = offset
@@ -87,13 +85,13 @@ def search_xrefs(address,reg,offset,start,end): #search all instructions in the 
                          if offset>0:
                                  while start <= alt_offset < end:
                                          if op_displ == reg+'+'+str(alt_offset):
-                                                 xrefs.append(hex(ea))
+                                                 xrefs.append(ea)
                                                  break
                                          alt_offset+=1
                          elif offset<0:
                                  while start <= alt_offset < end:
                                          if op_displ == reg+str(alt_offset):
-                                                 xrefs.append(hex(ea))
+                                                 xrefs.append(ea)
                                                  break
                                          alt_offset+=1
          return xrefs                        
@@ -101,7 +99,7 @@ def OpXref(address,n):
     del xrefs[:]    
     if n == 0 or n == 1:
             op = GetOpnd(address,n)
-            r = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_]+)([-+][0-9a-zA-Z_]+)([]])',op) # [ebp+80h+Buffers]
+            r = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_.]+)([-+][0-9a-zA-Z_.]+)([]])',op) # [ebp+80h+Buffers]
             if r:
                     reg = r.group(0)[1:4]
                     rn = re.search('([0-9A-F]+)',op)
@@ -152,7 +150,7 @@ def ArgRef(address,n): # if operand #n in address is a function argument shows i
     if n == 0 or n == 1:
             op = GetOpnd(address,n)
             count = 0
-            r = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_]+)([-+][0-9a-zA-Z_]+)([]])',op) # [ebp+80h+Buffers]
+            r = re.search('([[])([a-z]+)([-+][0-9a-zA-Z_.]+)([-+][0-9a-zA-Z_.]+)([]])',op) # [ebp+80h+Buffers]
             if r:
                     reg = r.group(0)[1:4]
                     rn = re.search('([0-9A-F]+)',op)
@@ -203,7 +201,5 @@ def ArgRef(address,n): # if operand #n in address is a function argument shows i
                                             break
                
                 
-            return count, xrefs
-
-                        
+            return count, xrefs               
         
